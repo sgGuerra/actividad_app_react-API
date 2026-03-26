@@ -18,9 +18,9 @@ import Link from "next/link";
 // ── Team members data ──────────────────────────────────────────
 // Edit this array to add your real team member names & roles
 const TEAM_MEMBERS = [
-  { name: "Integrante 1", role: "Frontend & Game Logic", emoji: "👨‍💻" },
-  { name: "Integrante 2", role: "API Integration & Services", emoji: "👩‍💻" },
-  { name: "Integrante 3", role: "UI Design & Components", emoji: "🎨" },
+  { name: "Andres Bedoya ", role: "melos", emoji: "🫶" },
+  { name: "Luis Guerra", role: "the goat", emoji: "🐐" },
+  { name: "Tomas Henao", role: "the beast", emoji: "🐒" },
 ];
 
 // ── How it works steps ─────────────────────────────────────────
