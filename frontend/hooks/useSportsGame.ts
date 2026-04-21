@@ -1,111 +1,115 @@
 "use client";
 /**
- * useGame.ts
+ * useSportsGame.ts
  * ─────────────────────────────────────────────────────────────
- * Custom React hook que maneja TODO el estado y la lógica del juego.
+ * Custom React hook for the sports guessing games.
+ * Supports two modes: "team" and "player".
  *
- * CAMBIOS respecto a la versión anterior:
- *   - Ya NO llama directamente a restcountries.com
- *   - Llama al BACKEND (Express) que actúa como puente:
- *       /api/countries       → todos los países
- *       /api/countries/random → país aleatorio
- *       /api/ask             → pregunta a la IA
- *
- *   - Gracias a los rewrites en next.config.js, estas URLs
- *     se redirigen transparentemente al backend (puerto 3001).
+ * - Fetches teams/players from the backend
+ * - Picks a random secret element
+ * - Sends questions to the AI with the correct gameMode
+ * - Handles guessing logic
  * ─────────────────────────────────────────────────────────────
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { getRandomCountry, checkGuess } from "@/utils/countryUtils";
-import { Country, ChatMessage } from "@/utils/types";
+import { Team, Player, ChatMessage, GameMode } from "@/utils/types";
 
-// How many questions the player gets per game
 const MAX_QUESTIONS = 20;
 
-export function useGame() {
+export function useSportsGame(mode: "team" | "player") {
   // ── State declarations ───────────────────────────────────────
-
-  // The secret country (never shown to the user during the game)
-  const [secretCountry, setSecretCountry] = useState<Country | null>(null);
-
-  // All countries loaded from the API (used to pick a random one)
-  const [allCountries, setAllCountries] = useState<Country[]>([]);
-
-  // The chat history: array of { role: "user"|"ai", text: string }
+  const [secretTeam, setSecretTeam] = useState<Team | null>(null);
+  const [secretPlayer, setSecretPlayer] = useState<Player | null>(null);
+  const [allTeams, setAllTeams] = useState<Team[]>([]);
+  const [allPlayers, setAllPlayers] = useState<Player[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-
-  // How many questions the user has asked so far
   const [questionsUsed, setQuestionsUsed] = useState<number>(0);
-
-  // Game status: "loading" | "playing" | "won" | "lost"
   const [gameStatus, setGameStatus] = useState<"loading" | "playing" | "won" | "lost">("loading");
-
-  // Whether the AI is currently generating a response
   const [isAiThinking, setIsAiThinking] = useState<boolean>(false);
-
-  // Any error message to show the user
   const [error, setError] = useState<string | null>(null);
 
-  // ── Fetch countries on first load ───────────────────────────
-  // CAMBIO: Ahora llama al BACKEND (/api/countries) en vez de
-  //         restcountries.com directamente.
+  // ── Fetch data on first load ─────────────────────────────────
   useEffect(() => {
-    async function loadCountries() {
+    async function loadData() {
       try {
         setGameStatus("loading");
 
-        // Llamar al backend (el rewrite redirige a localhost:3001)
-        const res = await fetch("/api/countries");
-
-        if (!res.ok) throw new Error("Could not load countries. Try refreshing.");
-
-        const data = await res.json();
-        setAllCountries(data);
-
-        // Pick a random country and start the game
-        const chosen = getRandomCountry(data);
-        startNewGame(chosen);
+        if (mode === "team") {
+          const res = await fetch("/api/teams");
+          if (!res.ok) throw new Error("Could not load teams. Try refreshing.");
+          const data: Team[] = await res.json();
+          setAllTeams(data);
+          startNewGame(data, []);
+        } else {
+          // mode === "player"
+          // Fetch both players and teams (we need team info for display)
+          const [playersRes, teamsRes] = await Promise.all([
+            fetch("/api/players"),
+            fetch("/api/teams"),
+          ]);
+          if (!playersRes.ok) throw new Error("Could not load players. Try refreshing.");
+          if (!teamsRes.ok) throw new Error("Could not load teams. Try refreshing.");
+          const playersData: Player[] = await playersRes.json();
+          const teamsData: Team[] = await teamsRes.json();
+          setAllPlayers(playersData);
+          setAllTeams(teamsData);
+          startNewGame(teamsData, playersData);
+        }
       } catch (err: any) {
         setError(err.message);
-        setGameStatus("loading"); // stays on loading so error shows
+        setGameStatus("loading");
       }
     }
 
-    loadCountries();
-  }, []); // Empty array = run once when component mounts
+    loadData();
+  }, []);
 
   // ── Start (or restart) the game ─────────────────────────────
   const startNewGame = useCallback(
-    (country: Country | null = null) => {
-      // If no country is passed, pick a new random one
-      const newCountry = country ?? getRandomCountry(allCountries);
+    (teams: Team[] = allTeams, players: Player[] = allPlayers) => {
+      if (mode === "team") {
+        const list = teams.length > 0 ? teams : allTeams;
+        if (list.length === 0) return;
+        const chosen = list[Math.floor(Math.random() * list.length)];
+        setSecretTeam(chosen);
+        setSecretPlayer(null);
+        setMessages([
+          {
+            role: "ai",
+            text: "🏟️ I'm thinking of a sports team... You have 20 questions to find out which one! Ask me anything!",
+          },
+        ]);
+      } else {
+        const list = players.length > 0 ? players : allPlayers;
+        if (list.length === 0) return;
+        const chosen = list[Math.floor(Math.random() * list.length)];
+        setSecretPlayer(chosen);
+        setSecretTeam(null);
+        setMessages([
+          {
+            role: "ai",
+            text: "🧑‍🤝‍🧑 I'm thinking of a sports player... You have 20 questions to find out who! Ask me anything!",
+          },
+        ]);
+      }
 
-      setSecretCountry(newCountry);
-      setMessages([
-        {
-          role: "ai",
-          text: "🌍 I'm thinking of a country... You have 20 questions to find out which one! Ask me anything — yes/no questions work best!",
-        },
-      ]);
       setQuestionsUsed(0);
       setGameStatus("playing");
       setIsAiThinking(false);
       setError(null);
     },
-    [allCountries]
+    [allTeams, allPlayers, mode]
   );
 
   // ── Handle a question from the user ─────────────────────────
   const askQuestion = useCallback(
     async (questionText: string) => {
-      // Guard: don't allow questions if game isn't active
       if (gameStatus !== "playing" || isAiThinking) return;
       if (!questionText.trim()) return;
 
       const newQuestionCount = questionsUsed + 1;
 
-      // Add the user's message to the chat
       setMessages((prev) => [
         ...prev,
         { role: "user", text: questionText },
@@ -115,25 +119,21 @@ export function useGame() {
       setError(null);
 
       try {
-        // Build the chat history in the format the AI service expects
         const historyForAI = messages.map((m) => ({
           role: m.role === "user" ? "user" : "assistant",
           content: m.text,
         }));
 
-        /**
-         * CAMBIO: Llama a /api/ask que se redirige al backend Express.
-         * El backend tiene el aiService que construye el prompt con
-         * AMBOS contextos (países + deportes).
-         */
         const res = await fetch("/api/ask", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             question: questionText,
-            country: secretCountry,
+            country: null,
             history: historyForAI,
-            gameMode: "country",
+            gameMode: mode as GameMode,
+            secretTeam: mode === "team" ? secretTeam : null,
+            secretPlayer: mode === "player" ? secretPlayer : null,
           }),
         });
 
@@ -141,10 +141,8 @@ export function useGame() {
 
         const { answer } = await res.json();
 
-        // Add AI response to chat
         setMessages((prev) => [...prev, { role: "ai", text: answer }]);
 
-        // Check if the player has run out of questions
         if (newQuestionCount >= MAX_QUESTIONS) {
           setGameStatus("lost");
         }
@@ -154,19 +152,29 @@ export function useGame() {
         setIsAiThinking(false);
       }
     },
-    [gameStatus, isAiThinking, questionsUsed, messages, secretCountry]
+    [gameStatus, isAiThinking, questionsUsed, messages, secretTeam, secretPlayer, mode]
   );
 
-  // ── Handle a country guess from the user ────────────────────
+  // ── Handle a guess from the user ────────────────────────────
   const submitGuess = useCallback(
     async (guessText: string) => {
       if (gameStatus !== "playing" || isAiThinking) return;
       if (!guessText.trim()) return;
 
-      const isCorrect = checkGuess(guessText, secretCountry);
+      const normalized = guessText.trim().toLowerCase();
+      let isCorrect = false;
+      let secretName = "";
+
+      if (mode === "team" && secretTeam) {
+        secretName = secretTeam.name;
+        isCorrect = normalized === secretTeam.name.toLowerCase();
+      } else if (mode === "player" && secretPlayer) {
+        secretName = secretPlayer.name;
+        isCorrect = normalized === secretPlayer.name.toLowerCase();
+      }
+
       const newQuestionCount = questionsUsed + 1;
 
-      // Add the guess as a user message
       setMessages((prev) => [
         ...prev,
         { role: "user", text: `🔍 My guess: ${guessText}` },
@@ -174,17 +182,15 @@ export function useGame() {
       setQuestionsUsed(newQuestionCount);
 
       if (isCorrect) {
-        // Player wins!
         setMessages((prev) => [
           ...(prev as ChatMessage[]),
           {
             role: "ai" as const,
-            text: `🎉 YES! You got it! The country was **${secretCountry?.name.common}**! Incredible geography skills! 🌟`,
+            text: `🎉 YES! You got it! The ${mode} was **${secretName}**! Incredible skills! 🌟`,
           },
         ]);
         setGameStatus("won");
       } else {
-        // Wrong guess — counts as a used question
         const remaining = MAX_QUESTIONS - newQuestionCount;
         setMessages((prev) => [
           ...(prev as ChatMessage[]),
@@ -193,7 +199,7 @@ export function useGame() {
             text:
               remaining > 0
                 ? `❌ Nope, that's not it! You have ${remaining} question${remaining !== 1 ? "s" : ""} left. Keep thinking!`
-                : `❌ Wrong guess! You've used all your questions. The country was **${secretCountry?.name.common}**. Better luck next time!`,
+                : `❌ Wrong guess! You've used all your questions. The ${mode} was **${secretName}**. Better luck next time!`,
           },
         ]);
 
@@ -202,12 +208,14 @@ export function useGame() {
         }
       }
     },
-    [gameStatus, isAiThinking, questionsUsed, secretCountry]
+    [gameStatus, isAiThinking, questionsUsed, secretTeam, secretPlayer, mode]
   );
 
   // ── Return everything the UI needs ──────────────────────────
   return {
-    secretCountry,
+    secretTeam,
+    secretPlayer,
+    allTeams,
     messages,
     questionsUsed,
     questionsRemaining: MAX_QUESTIONS - questionsUsed,

@@ -3,12 +3,10 @@
  * ─────────────────────────────────────────────────────────────
  * Servicio que maneja la comunicación con la API de novita.ai.
  *
- * Este servicio construye el SYSTEM PROMPT con contexto de:
- *   1. País secreto (para el juego de geografía)
- *   2. Datos deportivos (para responder sobre deportes)
- *
- * La IA detecta automáticamente si la pregunta es sobre
- * geografía o deportes y responde apropiadamente.
+ * Este servicio construye el SYSTEM PROMPT según el gameMode:
+ *   - "country" → Juego de adivinanza de país
+ *   - "team"    → Juego de adivinanza de equipo deportivo
+ *   - "player"  → Juego de adivinanza de jugador deportivo
  *
  * La API key viene de la variable de entorno NOVITA_API_KEY.
  * ─────────────────────────────────────────────────────────────
@@ -40,17 +38,22 @@ export interface SportsContext {
   matches: Match[];
 }
 
+/** Modo de juego */
+export type GameMode = "country" | "team" | "player";
+
 /**
  * askAI
  * ─────────────────────────────────────────────────────────────
- * Envía la pregunta del usuario a novita.ai con contexto dual:
- *   - Datos del país secreto (juego de geografía)
- *   - Datos deportivos (consultas sobre deportes)
+ * Envía la pregunta del usuario a novita.ai con el prompt
+ * adecuado según el gameMode.
  *
  * @param userQuestion  - La pregunta del usuario
- * @param country       - El país secreto del juego (puede ser null)
+ * @param country       - El país secreto (solo para mode "country")
  * @param sportsContext - Todos los datos deportivos en memoria
  * @param chatHistory   - Historial de mensajes previos
+ * @param gameMode      - Modo de juego: "country" | "team" | "player"
+ * @param secretTeam    - Equipo secreto (solo para mode "team")
+ * @param secretPlayer  - Jugador secreto (solo para mode "player")
  * @returns             - La respuesta de la IA
  * ─────────────────────────────────────────────────────────────
  */
@@ -58,10 +61,13 @@ export async function askAI(
   userQuestion: string,
   country: Country | null,
   sportsContext: SportsContext,
-  chatHistory: ChatMessage[] = []
+  chatHistory: ChatMessage[] = [],
+  gameMode: GameMode = "country",
+  secretTeam: Team | null = null,
+  secretPlayer: Player | null = null
 ): Promise<string> {
-  // 1. Construir el system prompt con AMBOS contextos
-  const systemPrompt = buildSystemPrompt(country, sportsContext);
+  // 1. Construir el system prompt según el modo de juego
+  const systemPrompt = buildSystemPrompt(country, sportsContext, gameMode, secretTeam, secretPlayer);
 
   // 2. Armar el array de mensajes para la API
   const messages = [
@@ -102,57 +108,36 @@ export async function askAI(
 /**
  * buildSystemPrompt
  * ─────────────────────────────────────────────────────────────
- * Construye las instrucciones completas para la IA con
- * contexto de países Y deportes.
- *
- * La IA detecta automáticamente el tema de la pregunta y
- * responde usando el contexto apropiado.
+ * Construye las instrucciones para la IA según el gameMode.
+ * Cada modo tiene su propio prompt enfocado.
  * ─────────────────────────────────────────────────────────────
  */
 function buildSystemPrompt(
   country: Country | null,
-  sportsContext: SportsContext
+  sportsContext: SportsContext,
+  gameMode: GameMode,
+  secretTeam: Team | null,
+  secretPlayer: Player | null
 ): string {
-  // ── Construir contexto de país ─────────────────────────────
-  const countrySection = buildCountryContext(country);
+  if (gameMode === "team") {
+    return buildTeamGamePrompt(secretTeam, sportsContext);
+  }
 
-  // ── Construir contexto deportivo ───────────────────────────
-  const sportsSection = buildSportsContext(sportsContext);
+  if (gameMode === "player") {
+    return buildPlayerGamePrompt(secretPlayer, sportsContext);
+  }
 
-  return `
-Eres un asistente inteligente y amigable que puede responder sobre DOS temas principales.
-Detecta automáticamente si la pregunta del usuario es sobre GEOGRAFÍA o sobre DEPORTES y responde apropiadamente.
-
-═══════════════════════════════════════════════════
-MODO 1: JUEGO DE GEOGRAFÍA (Guess the Country)
-═══════════════════════════════════════════════════
-${countrySection}
-
-═══════════════════════════════════════════════════
-MODO 2: INFORMACIÓN DEPORTIVA
-═══════════════════════════════════════════════════
-Si el usuario pregunta sobre deportes, equipos, jugadores, partidos o ligas,
-usa la siguiente base de datos para responder con información precisa:
-
-${sportsSection}
-
-REGLAS GENERALES:
-- Responde siempre en el mismo idioma que el usuario usa para preguntar.
-- Si la pregunta es sobre geografía, sigue las reglas del juego de adivinanza.
-- Si la pregunta es sobre deportes, responde directamente con los datos que tienes.
-- Si no tienes la información, di honestamente que no la tienes.
-- Mantén las respuestas concisas y útiles.
-  `.trim();
+  // Default: country mode
+  return buildCountryGamePrompt(country);
 }
 
 /**
- * buildCountryContext
- * Construye la sección del prompt relacionada con el juego de países.
+ * buildCountryGamePrompt
+ * Prompt completo para el modo "Guess the Country".
  */
-function buildCountryContext(country: Country | null): string {
+function buildCountryGamePrompt(country: Country | null): string {
   if (!country) {
-    return `No hay un país secreto seleccionado actualmente.
-Si el usuario pregunta sobre el juego de geografía, dile que inicie una nueva partida.`;
+    return `Eres un asistente amigable. No hay un país secreto seleccionado. Dile al usuario que inicie una nueva partida.`;
   }
 
   const name = country.name?.common ?? "Unknown";
@@ -173,7 +158,8 @@ Si el usuario pregunta sobre el juego de geografía, dile que inicie una nueva p
   const hemisphere = lat >= 0 ? "Northern Hemisphere" : "Southern Hemisphere";
 
   return `
-Si el usuario hace preguntas sobre un país misterioso, eres un game host divertido.
+Eres un game host divertido para el juego "Guess the Country".
+El jugador debe adivinar un país secreto haciendo preguntas.
 
 El país secreto es: ${name}
 
@@ -190,74 +176,107 @@ REGLAS DEL JUEGO:
 3. Si adivina CORRECTAMENTE: "🎉 ¡Sí! ¡El país es ${name}!"
 4. Si adivina MAL: "❌ No, ese no es. ¡Sigue intentando!"
 5. Máximo 15 palabras por respuesta en modo juego.
+6. Responde siempre en el mismo idioma que el usuario usa para preguntar.
   `.trim();
 }
 
 /**
- * buildSportsContext
- * Construye la sección del prompt con todos los datos deportivos.
- * Los formatea como texto legible para que la IA pueda buscar en ellos.
+ * buildTeamGamePrompt
+ * Prompt completo para el modo "Guess the Team".
  */
-function buildSportsContext(ctx: SportsContext): string {
-  // Formatear deportes
-  const sportsText = ctx.sports
-    .map((s) => `- ${s.name} (ID: ${s.id})`)
-    .join("\n");
+function buildTeamGamePrompt(secretTeam: Team | null, ctx: SportsContext): string {
+  if (!secretTeam) {
+    return `Eres un asistente amigable. No hay un equipo secreto seleccionado. Dile al usuario que inicie una nueva partida.`;
+  }
 
-  // Formatear ligas con su deporte
-  const leaguesText = ctx.leagues
-    .map((l) => {
-      const sport = ctx.sports.find((s) => s.id === l.sport_id);
-      return `- ${l.name} (ID: ${l.id}) — País: ${l.country}, Deporte: ${sport?.name ?? "?"}`;
-    })
-    .join("\n");
+  const league = ctx.leagues.find((l) => l.id === secretTeam.league_id);
+  const sport = ctx.sports.find((s) => s.id === secretTeam.sport_id);
+  const teamPlayers = ctx.players.filter((p) => p.team_id === secretTeam.id);
+  const teamMatches = ctx.matches.filter(
+    (m) => m.home_team_id === secretTeam.id || m.away_team_id === secretTeam.id
+  );
 
-  // Formatear equipos con su liga
-  const teamsText = ctx.teams
-    .map((t) => {
-      const league = ctx.leagues.find((l) => l.id === t.league_id);
-      return `- ${t.name} (ID: ${t.id}) — Liga: ${league?.name ?? "?"} `;
-    })
-    .join("\n");
-
-  // Formatear jugadores con su equipo y stats
-  const playersText = ctx.players
+  const playersInfo = teamPlayers
     .map((p) => {
-      const team = ctx.teams.find((t) => t.id === p.team_id);
-      const statsStr = Object.entries(p.stats)
-        .map(([key, val]) => `${key}: ${val}`)
-        .join(", ");
-      return `- ${p.name} (#${p.number}, ${p.position}) — Equipo: ${team?.name ?? "?"} — Stats: ${statsStr}`;
+      const statsStr = Object.entries(p.stats).map(([k, v]) => `${k}: ${v}`).join(", ");
+      return `- ${p.name} (#${p.number}, ${p.position}) — Stats: ${statsStr}`;
     })
     .join("\n");
 
-  // Formatear partidos
-  const matchesText = ctx.matches
+  const matchesInfo = teamMatches
     .map((m) => {
       const home = ctx.teams.find((t) => t.id === m.home_team_id);
       const away = ctx.teams.find((t) => t.id === m.away_team_id);
-      const scoreStr =
-        m.status === "finished" && m.score
-          ? ` — Resultado: ${m.score.home}-${m.score.away}`
-          : "";
-      return `- ${home?.name ?? "?"} vs ${away?.name ?? "?"} (${m.date}) — Estado: ${m.status}${scoreStr}`;
+      const scoreStr = m.status === "finished" && m.score ? ` — ${m.score.home}-${m.score.away}` : "";
+      return `- ${home?.name ?? "?"} vs ${away?.name ?? "?"} (${m.date}) ${m.status}${scoreStr}`;
     })
     .join("\n");
 
   return `
-DEPORTES:
-${sportsText}
+Eres un game host divertido para el juego "Guess the Team".
+El jugador debe adivinar un equipo deportivo secreto haciendo preguntas.
 
-LIGAS:
-${leaguesText}
+El equipo secreto es: ${secretTeam.name}
 
-EQUIPOS:
-${teamsText}
+Datos del equipo:
+- Deporte: ${sport?.name ?? "Unknown"}
+- Liga: ${league?.name ?? "Unknown"}
+- País de la liga: ${league?.country ?? "Unknown"}
 
-JUGADORES:
-${playersText}
+Jugadores del equipo:
+${playersInfo || "- No hay jugadores registrados"}
 
-PARTIDOS:
-${matchesText}
+Partidos del equipo:
+${matchesInfo || "- No hay partidos registrados"}
+
+REGLAS DEL JUEGO:
+1. NUNCA digas el nombre del equipo directamente, a menos que el jugador lo adivine.
+2. Responde con SÍ, NO, o una pista muy breve.
+3. Puedes dar pistas sobre el deporte, la liga, el país o los jugadores, pero NUNCA el nombre del equipo.
+4. Si adivina CORRECTAMENTE: "🎉 ¡Sí! ¡El equipo es ${secretTeam.name}!"
+5. Si adivina MAL: "❌ No, ese no es. ¡Sigue intentando!"
+6. Máximo 15 palabras por respuesta en modo juego.
+7. Responde siempre en el mismo idioma que el usuario usa para preguntar.
+  `.trim();
+}
+
+/**
+ * buildPlayerGamePrompt
+ * Prompt completo para el modo "Guess the Player".
+ */
+function buildPlayerGamePrompt(secretPlayer: Player | null, ctx: SportsContext): string {
+  if (!secretPlayer) {
+    return `Eres un asistente amigable. No hay un jugador secreto seleccionado. Dile al usuario que inicie una nueva partida.`;
+  }
+
+  const team = ctx.teams.find((t) => t.id === secretPlayer.team_id);
+  const league = team ? ctx.leagues.find((l) => l.id === team.league_id) : null;
+  const sport = team ? ctx.sports.find((s) => s.id === team.sport_id) : null;
+  const statsStr = Object.entries(secretPlayer.stats)
+    .map(([key, val]) => `${key}: ${val}`)
+    .join(", ");
+
+  return `
+Eres un game host divertido para el juego "Guess the Player".
+El jugador debe adivinar un jugador deportivo secreto haciendo preguntas.
+
+El jugador secreto es: ${secretPlayer.name}
+
+Datos del jugador:
+- Posición: ${secretPlayer.position}
+- Número: ${secretPlayer.number}
+- Equipo: ${team?.name ?? "Unknown"}
+- Liga: ${league?.name ?? "Unknown"}
+- Deporte: ${sport?.name ?? "Unknown"}
+- Estadísticas: ${statsStr}
+
+REGLAS DEL JUEGO:
+1. NUNCA digas el nombre del jugador directamente, a menos que el usuario lo adivine.
+2. Responde con SÍ, NO, o una pista muy breve.
+3. Puedes dar pistas sobre la posición, el número, el equipo, la liga, el deporte o las estadísticas, pero NUNCA el nombre.
+4. Si adivina CORRECTAMENTE: "🎉 ¡Sí! ¡El jugador es ${secretPlayer.name}!"
+5. Si adivina MAL: "❌ No, ese no es. ¡Sigue intentando!"
+6. Máximo 15 palabras por respuesta en modo juego.
+7. Responde siempre en el mismo idioma que el usuario usa para preguntar.
   `.trim();
 }

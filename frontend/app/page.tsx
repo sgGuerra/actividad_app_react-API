@@ -6,8 +6,10 @@
  *
  * Contains:
  *   - App name & tagline
- *   - Game description
+ *   - Game modes overview
  *   - What problem it solves
+ *   - How it works
+ *   - Tech stack
  *   - Team members
  *   - CTA button to /game
  * ─────────────────────────────────────────────────────────────
@@ -27,27 +29,49 @@ const TEAM_MEMBERS = [
 const HOW_IT_WORKS = [
   {
     step: "1",
-    icon: "🌍",
-    title: "A country is chosen",
-    desc: "The app picks a random country from the REST Countries API. You won't know which one!",
+    icon: "🎮",
+    title: "Choose a category",
+    desc: "Pick your challenge: Guess the Country, Guess the Team, or Guess the Player.",
   },
   {
     step: "2",
-    icon: "💬",
-    title: "Ask up to 20 questions",
-    desc: 'Ask yes/no questions like "Is it in Europe?" or "Does it border the ocean?"',
+    icon: "🎲",
+    title: "A secret is chosen",
+    desc: "The app picks a random country, team, or player. You won't know which one!",
   },
   {
     step: "3",
-    icon: "🤖",
-    title: "AI answers your questions",
-    desc: "An AI game host answers each question with hints — but never reveals the country directly.",
+    icon: "💬",
+    title: "Ask up to 20 questions",
+    desc: 'Ask yes/no questions like "Is it in Europe?" or "Does the player play forward?"',
   },
   {
     step: "4",
-    icon: "🎯",
-    title: "Make your guess",
-    desc: "When you think you know it, submit your guess. Correct? You win! Wrong? Keep asking!",
+    icon: "🤖",
+    title: "AI answers your questions",
+    desc: "An AI game host answers each question with hints — but never reveals the answer directly.",
+  },
+];
+
+// ── Game modes ─────────────────────────────────────────────────
+const GAME_MODES = [
+  {
+    emoji: "🌍",
+    title: "Guess the Country",
+    desc: "250+ countries. Ask about capitals, regions, currencies, and more.",
+    gradient: "from-indigo-500 to-purple-600",
+  },
+  {
+    emoji: "🏟️",
+    title: "Guess the Team",
+    desc: "Sports teams from top leagues. Ask about players, leagues, and history.",
+    gradient: "from-emerald-500 to-teal-600",
+  },
+  {
+    emoji: "⭐",
+    title: "Guess the Player",
+    desc: "Star athletes. Ask about position, stats, team, and career.",
+    gradient: "from-amber-500 to-orange-600",
   },
 ];
 
@@ -57,14 +81,14 @@ export default function HomePage() {
 
       {/* ── Hero Section ─────────────────────────────────────── */}
       <section className="text-center space-y-6">
-        <div className="text-7xl">🌍</div>
+        <div className="text-7xl">🎮</div>
         <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 leading-tight">
-          Guess the Country
-          <span className="block text-indigo-600">in 20 Questions</span>
+          GeoQuest
+          <span className="block text-indigo-600">Guess It in 20 Questions</span>
         </h1>
         <p className="text-lg text-gray-500 max-w-xl mx-auto leading-relaxed">
-          A geography guessing game powered by AI. Ask smart questions, 
-          collect clues, and identify the mystery country before you run out!
+          An AI-powered guessing game with 3 categories: countries, sports teams, 
+          and players. Ask smart questions, collect clues, and identify the mystery!
         </p>
 
         {/* CTA Button — uses Next.js Link for client-side navigation */}
@@ -74,6 +98,29 @@ export default function HomePage() {
         >
           🎮 Start Playing
         </Link>
+      </section>
+
+      {/* ── Game Modes ────────────────────────────────────────── */}
+      <section className="space-y-6">
+        <h2 className="text-2xl font-bold text-gray-900 text-center">
+          🏆 Three Game Modes
+        </h2>
+        <div className="grid sm:grid-cols-3 gap-4">
+          {GAME_MODES.map((mode) => (
+            <div
+              key={mode.title}
+              className="bg-white border border-gray-200 rounded-2xl p-5 text-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
+            >
+              <div
+                className={`w-14 h-14 mx-auto mb-3 rounded-full bg-gradient-to-br ${mode.gradient} flex items-center justify-center text-2xl shadow-md`}
+              >
+                {mode.emoji}
+              </div>
+              <h3 className="font-bold text-gray-900 mb-1">{mode.title}</h3>
+              <p className="text-xs text-gray-500 leading-relaxed">{mode.desc}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* ── What Problem It Solves ───────────────────────────── */}
@@ -195,7 +242,7 @@ export default function HomePage() {
       {/* ── Bottom CTA ───────────────────────────────────────── */}
       <section className="text-center space-y-4 py-6">
         <h2 className="text-2xl font-bold text-gray-900">
-          Ready to test your geography? 🗺️
+          Ready to test your knowledge? 🗺️
         </h2>
         <Link
           href="/game"

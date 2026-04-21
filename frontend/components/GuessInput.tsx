@@ -16,9 +16,10 @@ import React, { useState } from "react";
 interface GuessInputProps {
   onSubmit: (guess: string) => void;
   disabled: boolean;
+  placeholder?: string;
 }
 
-export default function GuessInput({ onSubmit, disabled }: GuessInputProps) {
+export default function GuessInput({ onSubmit, disabled, placeholder }: GuessInputProps) {
   const [guessValue, setGuessValue] = useState("");
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -43,7 +44,7 @@ export default function GuessInput({ onSubmit, disabled }: GuessInputProps) {
           type="text"
           value={guessValue}
           onChange={(e) => setGuessValue(e.target.value)}
-          placeholder='e.g. "France", "Brazil", "Japan"...'
+          placeholder={placeholder || 'e.g. "France", "Brazil", "Japan"...'}
           disabled={disabled}
           className="flex-1 px-4 py-2.5 text-sm border border-emerald-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
         />

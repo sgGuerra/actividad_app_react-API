@@ -4,16 +4,17 @@
  * Caso de uso: enviar una pregunta a la IA.
  *
  * Este caso de uso coordina:
- *   1. Recibir la pregunta y el contexto del país
+ *   1. Recibir la pregunta y el contexto según el gameMode
  *   2. Obtener los datos deportivos de los repositorios
  *   3. Enviar todo al servicio de IA (NovitaAIService)
  *   4. Devolver la respuesta
  *
- * Es el "cerebro" que conecta ambos contextos (países + deportes)
- * y los envía a la IA para que responda.
+ * Soporta 3 modos: "country", "team", "player".
  * ─────────────────────────────────────────────────────────────
  */
 import { Country } from "../../domain/entities/Country";
+import { Team } from "../../domain/entities/Team";
+import { Player } from "../../domain/entities/Player";
 import { ISportRepository } from "../../domain/repositories/ISportRepository";
 import { ILeagueRepository } from "../../domain/repositories/ILeagueRepository";
 import { ITeamRepository } from "../../domain/repositories/ITeamRepository";
@@ -23,6 +24,7 @@ import {
   askAI,
   ChatMessage,
   SportsContext,
+  GameMode,
 } from "../../infrastructure/external/NovitaAIService";
 
 export class AskAI {
@@ -35,17 +37,23 @@ export class AskAI {
   ) {}
 
   /**
-   * Ejecuta el caso de uso: envía la pregunta a la IA con ambos contextos.
+   * Ejecuta el caso de uso: envía la pregunta a la IA según el modo de juego.
    *
-   * @param question    - La pregunta del usuario
-   * @param country     - El país secreto del juego (puede ser null)
-   * @param chatHistory - Historial de mensajes previos
-   * @returns           - La respuesta de la IA
+   * @param question     - La pregunta del usuario
+   * @param country      - El país secreto (solo para mode "country")
+   * @param chatHistory  - Historial de mensajes previos
+   * @param gameMode     - Modo de juego: "country" | "team" | "player"
+   * @param secretTeam   - Equipo secreto (solo para mode "team")
+   * @param secretPlayer - Jugador secreto (solo para mode "player")
+   * @returns            - La respuesta de la IA
    */
   async execute(
     question: string,
     country: Country | null,
-    chatHistory: ChatMessage[] = []
+    chatHistory: ChatMessage[] = [],
+    gameMode: GameMode = "country",
+    secretTeam: Team | null = null,
+    secretPlayer: Player | null = null
   ): Promise<string> {
     // Recopilar TODOS los datos deportivos de los repositorios
     const sportsContext: SportsContext = {
@@ -56,7 +64,7 @@ export class AskAI {
       matches: this.matchRepository.findAll(),
     };
 
-    // Enviar a la IA con ambos contextos (país + deportes)
-    return askAI(question, country, sportsContext, chatHistory);
+    // Enviar a la IA con el contexto adecuado según el modo
+    return askAI(question, country, sportsContext, chatHistory, gameMode, secretTeam, secretPlayer);
   }
 }

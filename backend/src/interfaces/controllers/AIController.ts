@@ -23,7 +23,7 @@ export class AIController {
    */
   ask = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { question, country, history } = req.body;
+      const { question, country, history, gameMode, secretTeam, secretPlayer } = req.body;
 
       // Validación básica
       if (!question) {
@@ -31,11 +31,14 @@ export class AIController {
         return;
       }
 
-      // Llamar al caso de uso con la pregunta y los contextos
+      // Llamar al caso de uso con la pregunta y el modo de juego
       const answer = await this.askAI.execute(
         question,
         country ?? null,
-        history ?? []
+        history ?? [],
+        gameMode ?? "country",
+        secretTeam ?? null,
+        secretPlayer ?? null
       );
 
       res.json({ answer });
