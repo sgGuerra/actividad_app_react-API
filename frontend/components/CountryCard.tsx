@@ -16,44 +16,39 @@ export default function CountryCard({ country }: { country: Country | null }) {
   if (!country) return null;
 
   // Extract data safely with fallbacks
-  const name = country?.name?.common ?? "Unknown";
-  const capital = country?.capital?.[0] ?? "N/A";
-  const region = country?.region ?? "N/A";
-  const subregion = country?.subregion ?? "N/A";
+  const name = country?.name?.common ?? "Desconocido";
+  const capital = country?.capital?.[0] ?? "N/D";
+  const region = country?.region ?? "N/D";
+  const subregion = country?.subregion ?? "N/D";
   const currency = getCurrencyDisplay(country?.currencies);
   const flagUrl = country?.flags?.png ?? country?.flags?.svg;
-  const lat = country?.latlng?.[0]?.toFixed(2) ?? "N/A";
-  const lng = country?.latlng?.[1]?.toFixed(2) ?? "N/A";
+  const lat = country?.latlng?.[0]?.toFixed(2) ?? "N/D";
+  const lng = country?.latlng?.[1]?.toFixed(2) ?? "N/D";
 
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-md">
-      {/* Flag banner */}
+    <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03]">
       {flagUrl && (
-        <div className="h-32 bg-gray-100 overflow-hidden flex items-center justify-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+        <div className="flex h-32 items-center justify-center overflow-hidden bg-black">
           <img
             src={flagUrl}
-            alt={`Flag of ${name}`}
+            alt={`Bandera de ${name}`}
             className="h-full w-full object-cover"
           />
         </div>
       )}
 
-      {/* Country details */}
-      <div className="p-5 space-y-3">
-        <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          🌍 {name}
+      <div className="space-y-12 p-20">
+        <h3 className="flex items-center gap-8 text-2xl font-bold text-white">
+          {name}
         </h3>
 
-        {/* Info grid */}
         <div className="grid grid-cols-2 gap-3 text-sm">
-          <InfoItem icon="🏛️" label="Capital" value={capital} />
-          <InfoItem icon="🗺️" label="Region" value={region} />
-          <InfoItem icon="📍" label="Subregion" value={subregion} />
-          <InfoItem icon="💰" label="Currency" value={currency} />
+          <InfoItem label="Capital" value={capital} />
+          <InfoItem label="Región" value={region} />
+          <InfoItem label="Subregión" value={subregion} />
+          <InfoItem label="Moneda" value={currency} />
           <InfoItem
-            icon="📡"
-            label="Coordinates"
+            label="Coordenadas"
             value={`${lat}°, ${lng}°`}
           />
         </div>
@@ -66,13 +61,13 @@ export default function CountryCard({ country }: { country: Country | null }) {
  * InfoItem
  * Small helper component for a label+value pair.
  */
-function InfoItem({ icon, label, value }: { icon: string; label: string; value: string }) {
+function InfoItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-gray-50 rounded-lg p-2.5">
-      <div className="text-xs text-gray-400 mb-0.5">
-        {icon} {label}
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-12">
+      <div className="mb-2 text-xs text-white/55">
+        {label}
       </div>
-      <div className="font-semibold text-gray-800 text-sm truncate">
+      <div className="truncate text-sm font-semibold text-white">
         {value}
       </div>
     </div>

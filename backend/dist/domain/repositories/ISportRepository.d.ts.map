@@ -1,0 +1,1 @@
+{"version":3,"file":"ISportRepository.d.ts","sourceRoot":"","sources":["../../../src/domain/repositories/ISportRepository.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;GAWG;AACH,OAAO,EAAE,KAAK,EAAE,MAAM,mBAAmB,CAAC;AAE1C,MAAM,WAAW,gBAAgB;IAC/B,iCAAiC;IACjC,OAAO,IAAI,KAAK,EAAE,CAAC;IAEnB,wDAAwD;IACxD,QAAQ,CAAC,EAAE,EAAE,MAAM,GAAG,KAAK,GAAG,IAAI,CAAC;CACpC"}

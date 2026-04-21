@@ -1,0 +1,1 @@
+{"version":3,"file":"Milestone.d.ts","sourceRoot":"","sources":["../../../src/domain/entities/Milestone.ts"],"names":[],"mappings":"AAAA;;;;;;;;GAQG;AACH,MAAM,WAAW,SAAS;IACxB,sBAAsB;IACtB,EAAE,EAAE,MAAM,CAAC;IAEX,qBAAqB;IACrB,QAAQ,EAAE,MAAM,CAAC;IAEjB,cAAc;IACd,QAAQ,EAAE,MAAM,CAAC;IAEjB,yBAAyB;IACzB,SAAS,EAAE,MAAM,CAAC;IAElB,2BAA2B;IAC3B,YAAY,EAAE,MAAM,CAAC;CACtB"}

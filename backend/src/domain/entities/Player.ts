@@ -2,34 +2,78 @@
  * Player.ts
  * ─────────────────────────────────────────────────────────────
  * Entidad de dominio: representa un jugador/deportista.
- * Cada jugador pertenece a un equipo y tiene estadísticas.
  *
- * Las stats son un objeto flexible porque varían según el deporte:
- *   - Football: { goals, assists }
- *   - Basketball: { points, rebounds, assists }
+ * Los campos reflejan la respuesta real de TheSportsDB API v1.
+ * Se incluyen todos los datos relevantes para que el agente
+ * de IA tenga contexto completo sobre cada jugador.
  * ─────────────────────────────────────────────────────────────
  */
 export interface Player {
-  /** Identificador único del jugador */
-  id: number;
+  /** ID único del jugador en TheSportsDB */
+  idPlayer: string;
+
+  /** ID del equipo actual */
+  idTeam: string;
 
   /** Nombre completo del jugador */
-  name: string;
+  strPlayer: string;
 
-  /** ID del equipo al que pertenece */
-  team_id: number;
+  /** Nombre alternativo del jugador */
+  strPlayerAlternate: string | null;
 
-  /** Posición en la que juega (ej: "Forward", "Guard") */
-  position: string;
+  /** Nombre del equipo actual */
+  strTeam: string;
+
+  /** Deporte que practica */
+  strSport: string;
+
+  /** Nacionalidad */
+  strNationality: string;
+
+  /** Fecha de nacimiento (YYYY-MM-DD) */
+  dateBorn: string | null;
+
+  /** Lugar de nacimiento */
+  strBirthLocation: string | null;
+
+  /** Estado: Active, Retired, Free Agent, etc. */
+  strStatus: string;
+
+  /** Género */
+  strGender: string;
+
+  /** Posición en la que juega */
+  strPosition: string;
 
   /** Número de camiseta */
-  number: number;
+  strNumber: string | null;
 
-  /**
-   * Estadísticas del jugador.
-   * Objeto flexible: las claves dependen del deporte.
-   * Football: { goals: number, assists: number }
-   * Basketball: { points: number, rebounds: number, assists: number }
-   */
-  stats: Record<string, number>;
+  /** Altura */
+  strHeight: string | null;
+
+  /** Peso */
+  strWeight: string | null;
+
+  /** Descripción/biografía en inglés */
+  strDescriptionEN: string | null;
+
+  /** Descripción/biografía en español */
+  strDescriptionES: string | null;
+
+  /** URL de la imagen thumbnail del jugador */
+  strThumb: string | null;
+
+  /** URL de la imagen recortada del jugador */
+  strCutout: string | null;
+
+  /** URL de la imagen render del jugador */
+  strRender: string | null;
+
+  /** Lado dominante: Left, Right, Both */
+  strSide: string | null;
+
+  /** Redes sociales */
+  strFacebook: string | null;
+  strTwitter: string | null;
+  strInstagram: string | null;
 }

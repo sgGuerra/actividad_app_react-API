@@ -1,42 +1,62 @@
-/**
- * TeamController.ts
- * ─────────────────────────────────────────────────────────────
- * Controller para el recurso "equipos".
- * Maneja GET /api/teams y GET /api/teams/:id
- * ─────────────────────────────────────────────────────────────
- */
 import { Request, Response } from "express";
-import { GetAllTeams } from "../../application/teams/GetAllTeams";
+import { SearchTeams } from "../../application/teams/SearchTeams";
 import { GetTeamById } from "../../application/teams/GetTeamById";
+import { GetTeamsByLeague } from "../../application/teams/GetTeamsByLeague";
+import { ITeamRepository } from "../../domain/repositories/ITeamRepository";
 
 export class TeamController {
   constructor(
-    private getAllTeams: GetAllTeams,
-    private getTeamById: GetTeamById
+    private searchTeams: SearchTeams,
+    private getTeamById: GetTeamById,
+    private getTeamsByLeague: GetTeamsByLeague,
+    private teamRepository: ITeamRepository // Atajo para obtener jugadores
   ) {}
 
-  /** GET /api/teams — Todos los equipos */
-  getAll = (_req: Request, res: Response): void => {
-    const teams = this.getAllTeams.execute();
-    res.json(teams);
+  search = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const name = req.query.name?.toString();
+        if (!name) {
+          res.status(400).json({ error: "Query param 'name' es requerido" });
+          return;
+        }
+        const teams = await this.searchTeams.execute(name);
+        res.json(teams);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
   };
 
-  /** GET /api/teams/:id — Equipo por ID (route param) */
-  getById = (req: Request, res: Response): void => {
-    const id = parseInt(req.params.id, 10);
-
-    if (isNaN(id)) {
-      res.status(400).json({ error: "El ID debe ser un número válido" });
-      return;
+  getById = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id?.toString();
+        const team = await this.getTeamById.execute(id);
+        if (!team) {
+            res.status(404).json({ error: "Equipo no encontrado" });
+            return;
+        }
+        res.json(team);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
     }
+  };
 
-    const team = this.getTeamById.execute(id);
-
-    if (!team) {
-      res.status(404).json({ error: `Equipo con ID ${id} no encontrado` });
-      return;
+  getByLeague = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const league = req.params.league?.toString();
+        const teams = await this.getTeamsByLeague.execute(league);
+        res.json(teams);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
     }
+  };
 
-    res.json(team);
+  getPlayers = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id?.toString();
+        const players = await this.teamRepository.getPlayers(id);
+        res.json(players);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
   };
 }

@@ -1,0 +1,1 @@
+{"version":3,"file":"matchRoutes.js","sourceRoot":"","sources":["../../../src/interfaces/routes/matchRoutes.ts"],"names":[],"mappings":";;AAUA,8CAOC;AAjBD;;;;;;GAMG;AACH,qCAAiC;AAGjC,SAAgB,iBAAiB,CAAC,UAA2B;IAC3D,MAAM,MAAM,GAAG,IAAA,gBAAM,GAAE,CAAC;IAExB,+EAA+E;IAC/E,MAAM,CAAC,GAAG,CAAC,GAAG,EAAE,UAAU,CAAC,MAAM,CAAC,CAAC;IAEnC,OAAO,MAAM,CAAC;AAChB,CAAC"}

@@ -27,3 +27,5 @@ export interface ChatMessage {
   text?: string;
   content?: string;
 }
+
+export type GameCategory = "player" | "country" | "team";
