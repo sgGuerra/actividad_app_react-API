@@ -45,7 +45,7 @@ export class RestCountriesRepository implements ICountryRepository {
       throw new Error(`REST Countries API error: ${response.status}`);
     }
 
-    const data: Country[] = await response.json();
+    const data = (await response.json()) as Country[];
 
     // Guardar en cache para futuras peticiones
     this.cache = data;

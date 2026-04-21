@@ -1,161 +1,133 @@
-/**
- * NovitaAIService.ts
- * ─────────────────────────────────────────────────────────────
- * Servicio que maneja la comunicación con la API de novita.ai.
- *
- * Este servicio construye el SYSTEM PROMPT con contexto de:
- *   1. País secreto (para el juego de geografía)
- *   2. Datos deportivos (para responder sobre deportes)
- *
- * La IA detecta automáticamente si la pregunta es sobre
- * geografía o deportes y responde apropiadamente.
- *
- * La API key viene de la variable de entorno NOVITA_API_KEY.
- * ─────────────────────────────────────────────────────────────
- */
+import OpenAI from "openai";
 import { Country } from "../../domain/entities/Country";
-import { Sport } from "../../domain/entities/Sport";
-import { League } from "../../domain/entities/League";
-import { Team } from "../../domain/entities/Team";
-import { Player } from "../../domain/entities/Player";
-import { Match } from "../../domain/entities/Match";
 
-// ── Configuración de novita.ai ───────────────────────────────
-const NOVITA_BASE_URL = "https://api.novita.ai/v3/openai";
-const MODEL = "meta-llama/llama-3.1-8b-instruct";
+// Inicializar OpenAI usando la configuración de Novita AI
+const openai = new OpenAI({
+  baseURL: "https://api.novita.ai/v3/openai",
+  // Usar la clave de Novita configurada en el .env, o fallback
+  apiKey: process.env.NOVITA_API_KEY || "YOUR_NOVITA_API_KEY",
+});
 
-/** Estructura de un mensaje en el historial de chat */
+// Tipo de los mensajes de historial esperados desde el frontend
 export interface ChatMessage {
-  role: "user" | "ai" | "system" | "assistant";
-  text?: string;
-  content?: string;
+  role: "user" | "assistant";
+  content: string;
 }
 
-/** Todos los datos deportivos agrupados */
+// Interfaz para agrupar los datos deportivos reales
 export interface SportsContext {
-  sports: Sport[];
-  leagues: League[];
-  teams: Team[];
-  players: Player[];
-  matches: Match[];
+  players: any[]; // Son de tipo PlayerDetail
+  teams: any[];
 }
 
 /**
- * askAI
- * ─────────────────────────────────────────────────────────────
- * Envía la pregunta del usuario a novita.ai con contexto dual:
- *   - Datos del país secreto (juego de geografía)
- *   - Datos deportivos (consultas sobre deportes)
- *
- * @param userQuestion  - La pregunta del usuario
- * @param country       - El país secreto del juego (puede ser null)
- * @param sportsContext - Todos los datos deportivos en memoria
- * @param chatHistory   - Historial de mensajes previos
- * @returns             - La respuesta de la IA
- * ─────────────────────────────────────────────────────────────
+ * Función principal para interactuar con la IA.
+ * Construye el sistema, formatea el historial y envía la consulta.
  */
 export async function askAI(
-  userQuestion: string,
+  question: string,
   country: Country | null,
-  sportsContext: SportsContext,
+  sportsCtx: SportsContext,
   chatHistory: ChatMessage[] = []
 ): Promise<string> {
-  // 1. Construir el system prompt con AMBOS contextos
-  const systemPrompt = buildSystemPrompt(country, sportsContext);
+  // Construir el "System Prompt" (instrucciones maestras)
+  const systemPrompt = buildSystemPrompt(country, sportsCtx);
 
-  // 2. Armar el array de mensajes para la API
-  const messages = [
-    { role: "system", content: systemPrompt },
-    // Incluir historial previo (máx 10 turnos para ahorrar tokens)
-    ...chatHistory.slice(-10).map((m) => ({
-      role: m.role === "user" ? "user" : "assistant",
-      content: m.content || m.text || "",
-    })),
-    { role: "user", content: userQuestion },
-  ];
+  // Mapear el historial del formato de nuestra app al formato de OpenAI/Novita
+  const messages: any[] = chatHistory.map((msg) => ({
+    role: msg.role,
+    content: msg.content,
+  }));
 
-  // 3. Llamar a la API de novita.ai
-  const response = await fetch(`${NOVITA_BASE_URL}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.NOVITA_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages,
-      max_tokens: 300,
+  // Añadir la pregunta actual del usuario al final
+  messages.push({ role: "user", content: question });
+
+  try {
+    const chatCompletion = await openai.chat.completions.create({
+      model: "meta-llama/llama-3.3-70b-instruct",
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...messages,
+      ],
+      stream: false, // Falso para esperar la respuesta completa
+      max_tokens: 512,
       temperature: 0.7,
-    }),
-  });
+      top_p: 0.9,
+    });
 
-  // 4. Manejar errores
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`AI API error: ${response.status} - ${error}`);
+    return chatCompletion.choices[0].message?.content || "Sin respuesta.";
+  } catch (error) {
+    console.error("Error al llamar a Novita AI:", error);
+    throw new Error("No se pudo conectar con la IA.");
   }
-
-  const data = await response.json();
-  return data.choices[0].message.content;
 }
 
 /**
  * buildSystemPrompt
- * ─────────────────────────────────────────────────────────────
- * Construye las instrucciones completas para la IA con
- * contexto de países Y deportes.
- *
- * La IA detecta automáticamente el tema de la pregunta y
- * responde usando el contexto apropiado.
- * ─────────────────────────────────────────────────────────────
+ * Crea las instrucciones iniciales para la IA.
+ * Le dice qué rol jugar y le inyecta la información que necesita saber.
  */
 function buildSystemPrompt(
   country: Country | null,
-  sportsContext: SportsContext
+  sportsCtx: SportsContext
 ): string {
-  // ── Construir contexto de país ─────────────────────────────
-  const countrySection = buildCountryContext(country);
+  const baseInstructions = `
+Eres un game host divertido y también un experto en deportes mundiales y geografía.
+Tus respuestas deben ser precisas, amigables y ayudar al usuario.
+Puedes responder en el mismo idioma en el que te pregunten.
+`;
 
-  // ── Construir contexto deportivo ───────────────────────────
-  const sportsSection = buildSportsContext(sportsContext);
+  let targetName = "";
+  let targetCategory = "";
+  let contextData = "";
+
+  if (country) {
+    targetName = country.name.common;
+    targetCategory = "país";
+    contextData = buildCountryContext(country);
+  } else if (sportsCtx.players && sportsCtx.players.length > 0) {
+    targetName = sportsCtx.players[0].strPlayer;
+    targetCategory = "jugador";
+    contextData = buildSportsContext(sportsCtx);
+  } else if (sportsCtx.teams && sportsCtx.teams.length > 0) {
+    targetName = sportsCtx.teams[0].strTeam;
+    targetCategory = "equipo";
+    contextData = buildSportsContext(sportsCtx);
+  }
+
+  let rules = "";
+  if (targetName) {
+    rules = `
+REGLAS DEL JUEGO:
+1. NUNCA digas el nombre del ${targetCategory} directamente ("${targetName}"), a menos que el jugador lo adivine exactamente.
+2. El usuario te hará preguntas para intentar adivinar el ${targetCategory} secreto. Responde con SÍ o NO y si vas a dar pistas, NO DEBEN SER MUY EXACTAS ni obvias, tienen que ser sutiles para que el jugador logre deducir la respuesta correcta por su cuenta.
+3. Si el jugador hace una adivinanza directa y es CORRECTA: "¡🎉 Sí! ¡El ${targetCategory} es ${targetName}!"
+4. Si el jugador hace una adivinanza directa y es INCORRECTA: "❌ No, ese no es. ¡Sigue intentando!"
+5. Máximo 15 palabras por respuesta en modo juego.
+`;
+  } else {
+    contextData = `
+No hay ninguna categoría secreta en juego en este momento.
+Si el usuario pregunta para adivinar, dile que el modo juego no está activo.
+`;
+  }
 
   return `
-Eres un asistente inteligente y amigable que puede responder sobre DOS temas principales.
-Detecta automáticamente si la pregunta del usuario es sobre GEOGRAFÍA o sobre DEPORTES y responde apropiadamente.
+${baseInstructions.trim()}
 
-═══════════════════════════════════════════════════
-MODO 1: JUEGO DE GEOGRAFÍA (Guess the Country)
-═══════════════════════════════════════════════════
-${countrySection}
+--- CONTEXTO MODO JUEGO ---
+${contextData.trim()}
 
-═══════════════════════════════════════════════════
-MODO 2: INFORMACIÓN DEPORTIVA
-═══════════════════════════════════════════════════
-Si el usuario pregunta sobre deportes, equipos, jugadores, partidos o ligas,
-usa la siguiente base de datos para responder con información precisa:
-
-${sportsSection}
-
-REGLAS GENERALES:
-- Responde siempre en el mismo idioma que el usuario usa para preguntar.
-- Si la pregunta es sobre geografía, sigue las reglas del juego de adivinanza.
-- Si la pregunta es sobre deportes, responde directamente con los datos que tienes.
-- Si no tienes la información, di honestamente que no la tienes.
-- Mantén las respuestas concisas y útiles.
-  `.trim();
+${rules.trim()}
+`;
 }
 
 /**
  * buildCountryContext
- * Construye la sección del prompt relacionada con el juego de países.
+ * Extrae y formatea los datos clave del país secreto para que la IA los conozca.
  */
-function buildCountryContext(country: Country | null): string {
-  if (!country) {
-    return `No hay un país secreto seleccionado actualmente.
-Si el usuario pregunta sobre el juego de geografía, dile que inicie una nueva partida.`;
-  }
-
-  const name = country.name?.common ?? "Unknown";
+function buildCountryContext(country: Country): string {
+  const name = country.name.common;
   const capital = country.capital?.[0] ?? "Unknown";
   const region = country.region ?? "Unknown";
   const subregion = country.subregion ?? "Unknown";
@@ -173,8 +145,6 @@ Si el usuario pregunta sobre el juego de geografía, dile que inicie una nueva p
   const hemisphere = lat >= 0 ? "Northern Hemisphere" : "Southern Hemisphere";
 
   return `
-Si el usuario hace preguntas sobre un país misterioso, eres un game host divertido.
-
 El país secreto es: ${name}
 
 Datos del país:
@@ -183,81 +153,45 @@ Datos del país:
 - Subregión: ${subregion}
 - Moneda: ${currencyName} (${currencyCode})
 - Ubicación: ${hemisphere}, ~${Math.abs(lat)}°${lat >= 0 ? "N" : "S"}, ${Math.abs(lng)}°${lng >= 0 ? "E" : "W"}
-
-REGLAS DEL JUEGO:
-1. NUNCA digas el nombre del país directamente, a menos que el jugador lo adivine.
-2. Responde con SÍ, NO, o una pista muy breve.
-3. Si adivina CORRECTAMENTE: "🎉 ¡Sí! ¡El país es ${name}!"
-4. Si adivina MAL: "❌ No, ese no es. ¡Sigue intentando!"
-5. Máximo 15 palabras por respuesta en modo juego.
   `.trim();
 }
 
 /**
  * buildSportsContext
- * Construye la sección del prompt con todos los datos deportivos.
- * Los formatea como texto legible para que la IA pueda buscar en ellos.
+ * Construye la sección del prompt con todos los datos deportivos dinámicos.
  */
 function buildSportsContext(ctx: SportsContext): string {
-  // Formatear deportes
-  const sportsText = ctx.sports
-    .map((s) => `- ${s.name} (ID: ${s.id})`)
-    .join("\n");
+  let contextParts = [];
 
-  // Formatear ligas con su deporte
-  const leaguesText = ctx.leagues
-    .map((l) => {
-      const sport = ctx.sports.find((s) => s.id === l.sport_id);
-      return `- ${l.name} (ID: ${l.id}) — País: ${l.country}, Deporte: ${sport?.name ?? "?"}`;
-    })
-    .join("\n");
+  if (ctx.players && ctx.players.length > 0) {
+    contextParts.push("JUGADORES ENCONTRADOS:");
+    for (const p of ctx.players) {
+        contextParts.push(`- Nombre: ${p.strPlayer}`);
+        contextParts.push(`  Deporte: ${p.strSport}, Equipo Actual: ${p.strTeam}, Nacionalidad: ${p.strNationality}`);
+        contextParts.push(`  Posición: ${p.strPosition}, Estado: ${p.strStatus}`);
+        if (p.strDescriptionEN) contextParts.push(`  Bio: ${p.strDescriptionEN.substring(0, 500)}...`);
+        
+        if (p.formerTeams && p.formerTeams.length > 0) {
+            const fTeams = p.formerTeams.map((t: any) => t.strFormerTeam).join(", ");
+            contextParts.push(`  Equipos Anteriores: ${fTeams}`);
+        }
+        
+        if (p.honours && p.honours.length > 0) {
+            const h = p.honours.map((t: any) => `${t.strHonour} (${t.strSeason})`).join(", ");
+            contextParts.push(`  Títulos: ${h}`);
+        }
+    }
+  }
 
-  // Formatear equipos con su liga
-  const teamsText = ctx.teams
-    .map((t) => {
-      const league = ctx.leagues.find((l) => l.id === t.league_id);
-      return `- ${t.name} (ID: ${t.id}) — Liga: ${league?.name ?? "?"} `;
-    })
-    .join("\n");
+  if (ctx.teams && ctx.teams.length > 0) {
+    contextParts.push("EQUIPOS ENCONTRADOS:");
+    for (const t of ctx.teams) {
+        contextParts.push(`- Nombre: ${t.strTeam} (${t.strCountry})`);
+        contextParts.push(`  Deporte: ${t.strSport}, Liga: ${t.strLeague}, Fundación: ${t.intFormedYear}`);
+        contextParts.push(`  Estadio: ${t.strStadium} (Capacidad: ${t.intStadiumCapacity})`);
+        if (t.strDescriptionEN) contextParts.push(`  Descripción: ${t.strDescriptionEN.substring(0, 500)}...`);
+    }
+  }
 
-  // Formatear jugadores con su equipo y stats
-  const playersText = ctx.players
-    .map((p) => {
-      const team = ctx.teams.find((t) => t.id === p.team_id);
-      const statsStr = Object.entries(p.stats)
-        .map(([key, val]) => `${key}: ${val}`)
-        .join(", ");
-      return `- ${p.name} (#${p.number}, ${p.position}) — Equipo: ${team?.name ?? "?"} — Stats: ${statsStr}`;
-    })
-    .join("\n");
-
-  // Formatear partidos
-  const matchesText = ctx.matches
-    .map((m) => {
-      const home = ctx.teams.find((t) => t.id === m.home_team_id);
-      const away = ctx.teams.find((t) => t.id === m.away_team_id);
-      const scoreStr =
-        m.status === "finished" && m.score
-          ? ` — Resultado: ${m.score.home}-${m.score.away}`
-          : "";
-      return `- ${home?.name ?? "?"} vs ${away?.name ?? "?"} (${m.date}) — Estado: ${m.status}${scoreStr}`;
-    })
-    .join("\n");
-
-  return `
-DEPORTES:
-${sportsText}
-
-LIGAS:
-${leaguesText}
-
-EQUIPOS:
-${teamsText}
-
-JUGADORES:
-${playersText}
-
-PARTIDOS:
-${matchesText}
-  `.trim();
+  return contextParts.length > 0 ? contextParts.join("\n") : "No hay contexto de jugadores o equipos activo en esta consulta.";
 }

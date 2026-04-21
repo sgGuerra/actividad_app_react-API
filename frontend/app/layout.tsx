@@ -17,24 +17,19 @@ import Footer from "../components/Footer";
 
 // Next.js metadata — sets the <title> and <meta description> tags
 export const metadata = {
-  title: "GeoQuest — Guess the Country in 20 Questions",
+  title: "GeoQuest — Adivina en 20 intentos",
   description:
-    "A fun geography guessing game powered by AI. Ask questions, get hints, and guess the mystery country!",
+    "Juego de adivinanza con IA por categorías: jugador, país o equipo.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="bg-gray-50 text-gray-900 flex flex-col min-h-screen">
-        {/* Header appears on every page */}
+    <html lang="es">
+      <body className="flex min-h-screen flex-col bg-black text-white">
         <Header />
-
-        {/* Main content area — grows to fill available space */}
-        <main className="flex-1 w-full">
+        <main className="w-full flex-1">
           {children}
         </main>
-
-        {/* Footer appears on every page */}
         <Footer />
       </body>
     </html>

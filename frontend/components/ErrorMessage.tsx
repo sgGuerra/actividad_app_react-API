@@ -17,21 +17,16 @@ export default function ErrorMessage({ message, onRetry }: ErrorMessageProps) {
   if (!message) return null;
 
   return (
-    <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-      {/* Icon */}
-      <span className="text-red-500 text-xl flex-shrink-0">⚠️</span>
-
-      {/* Text area */}
+    <div className="flex items-start gap-3 rounded-2xl border border-white/20 bg-white/[0.04] p-16">
+      <span className="flex-shrink-0 text-white">!</span>
       <div className="flex-1">
-        <p className="text-red-700 text-sm font-medium">{message}</p>
-
-        {/* Retry button (optional) */}
+        <p className="text-sm font-medium text-white">{message}</p>
         {onRetry && (
           <button
             onClick={onRetry}
-            className="mt-2 text-xs text-red-600 underline hover:text-red-800 transition-colors"
+            className="mt-2 text-xs text-white/70 underline transition-colors hover:text-white"
           >
-            Try Again
+            Reintentar
           </button>
         )}
       </div>

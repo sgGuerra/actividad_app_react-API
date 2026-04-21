@@ -1,0 +1,1 @@
+{"version":3,"file":"Sport.d.ts","sourceRoot":"","sources":["../../../src/domain/entities/Sport.ts"],"names":[],"mappings":"AAAA;;;;;;;;;GASG;AACH,MAAM,WAAW,KAAK;IACpB,sCAAsC;IACtC,EAAE,EAAE,MAAM,CAAC;IAEX,kDAAkD;IAClD,IAAI,EAAE,MAAM,CAAC;IAEb,gDAAgD;IAChD,IAAI,EAAE,MAAM,CAAC;CACd"}

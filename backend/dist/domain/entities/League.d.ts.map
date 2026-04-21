@@ -1,0 +1,1 @@
+{"version":3,"file":"League.d.ts","sourceRoot":"","sources":["../../../src/domain/entities/League.ts"],"names":[],"mappings":"AAAA;;;;;;;;GAQG;AACH,MAAM,WAAW,MAAM;IACrB,qCAAqC;IACrC,EAAE,EAAE,MAAM,CAAC;IAEX,+CAA+C;IAC/C,IAAI,EAAE,MAAM,CAAC;IAEb,+BAA+B;IAC/B,OAAO,EAAE,MAAM,CAAC;IAEhB,gDAAgD;IAChD,QAAQ,EAAE,MAAM,CAAC;CAClB"}

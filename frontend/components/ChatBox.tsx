@@ -29,7 +29,7 @@ export default function ChatBox({ messages, isAiThinking }: ChatBoxProps) {
   }, [messages, isAiThinking]);
 
   return (
-    <div className="flex flex-col gap-3 h-96 overflow-y-auto p-4 bg-gray-50 rounded-xl border border-gray-200">
+    <div className="relative z-10 flex h-[22rem] flex-col gap-4 overflow-y-auto rounded-3xl border border-indigo-300/20 bg-slate-950/50 p-4 sm:p-5">
       {/* Render each message */}
       {messages.map((msg, index) => (
         <MessageBubble key={index} message={msg} />
@@ -37,16 +37,15 @@ export default function ChatBox({ messages, isAiThinking }: ChatBoxProps) {
 
       {/* AI "typing" indicator */}
       {isAiThinking && (
-        <div className="flex items-center gap-2 animate-fadeInUp">
-          <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-sm flex-shrink-0">
-            🌍
+        <div className="flex animate-fadeInUp items-center gap-3">
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-cyan-200/40 bg-cyan-400/10 text-[10px] text-cyan-100">
+            IA
           </div>
-          <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-none px-4 py-2">
-            <div className="flex gap-1 items-center h-5">
-              {/* Three bouncing dots */}
-              <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:0ms]" />
-              <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:150ms]" />
-              <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:300ms]" />
+          <div className="rounded-2xl rounded-tl-none border border-white/15 bg-black px-4 py-3">
+            <div className="flex h-5 items-center gap-1">
+              <span className="h-2 w-2 animate-bounce rounded-full bg-white [animation-delay:0ms]" />
+              <span className="h-2 w-2 animate-bounce rounded-full bg-white [animation-delay:150ms]" />
+              <span className="h-2 w-2 animate-bounce rounded-full bg-white [animation-delay:300ms]" />
             </div>
           </div>
         </div>
@@ -74,19 +73,19 @@ function MessageBubble({ message }: { message: ChatMessage }) {
     >
       {/* Avatar */}
       <div
-        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0 ${
-          isUser ? "bg-indigo-600 text-white" : "bg-indigo-100"
+      className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border text-[10px] ${
+          isUser ? "border-fuchsia-200 bg-fuchsia-300 text-slate-900" : "border-cyan-200/40 bg-cyan-400/10 text-cyan-100"
         }`}
       >
-        {isUser ? "😊" : "🌍"}
+        {isUser ? "Tú" : "IA"}
       </div>
 
       {/* Message text */}
       <div
-        className={`max-w-xs sm:max-w-sm px-4 py-2 rounded-2xl text-sm leading-relaxed ${
+        className={`max-w-xs rounded-2xl px-4 py-3 text-sm leading-relaxed sm:max-w-sm ${
           isUser
-            ? "bg-indigo-600 text-white rounded-br-none"
-            : "bg-white border border-gray-200 text-gray-800 rounded-bl-none"
+            ? "rounded-br-none bg-gradient-to-r from-fuchsia-200 to-fuchsia-300 text-slate-900"
+            : "rounded-bl-none border border-cyan-200/20 bg-slate-950 text-white"
         }`}
       >
         {/* Split on ** for bold formatting */}

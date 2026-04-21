@@ -18,12 +18,33 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { getRandomCountry, checkGuess } from "@/utils/countryUtils";
-import { Country, ChatMessage } from "@/utils/types";
+import { Country, ChatMessage, GameCategory } from "@/utils/types";
 
 // How many questions the player gets per game
 const MAX_QUESTIONS = 20;
+const SPORTS_PLAYERS = [
+  "Lionel Messi",
+  "Cristiano Ronaldo",
+  "Kylian Mbappe",
+  "Alexia Putellas",
+  "Erling Haaland",
+  "Aitana Bonmati",
+];
 
-export function useGame() {
+const SPORTS_TEAMS = [
+  "Real Madrid",
+  "Manchester City",
+  "Barcelona",
+  "Bayern Munich",
+  "Boca Juniors",
+  "River Plate",
+];
+
+function normalizeText(text?: string) {
+  return text?.trim().toLowerCase() ?? "";
+}
+
+export function useGame(initialCategory: GameCategory = "country") {
   // ── State declarations ───────────────────────────────────────
 
   // The secret country (never shown to the user during the game)
@@ -46,6 +67,9 @@ export function useGame() {
 
   // Any error message to show the user
   const [error, setError] = useState<string | null>(null);
+  const [gameCategory, setGameCategory] = useState<GameCategory>(initialCategory);
+  const [secretPlayer, setSecretPlayer] = useState<string | null>(null);
+  const [secretTeam, setSecretTeam] = useState<string | null>(null);
 
   // ── Fetch countries on first load ───────────────────────────
   // CAMBIO: Ahora llama al BACKEND (/api/countries) en vez de
@@ -58,14 +82,14 @@ export function useGame() {
         // Llamar al backend (el rewrite redirige a localhost:3001)
         const res = await fetch("/api/countries");
 
-        if (!res.ok) throw new Error("Could not load countries. Try refreshing.");
+        if (!res.ok) throw new Error("No se pudieron cargar los datos. Intenta recargar.");
 
         const data = await res.json();
         setAllCountries(data);
 
-        // Pick a random country and start the game
+        // Pick a random country and start the game using requested category
         const chosen = getRandomCountry(data);
-        startNewGame(chosen);
+        startNewGame(initialCategory, chosen);
       } catch (err: any) {
         setError(err.message);
         setGameStatus("loading"); // stays on loading so error shows
@@ -73,19 +97,43 @@ export function useGame() {
     }
 
     loadCountries();
-  }, []); // Empty array = run once when component mounts
+  }, [initialCategory]); // Empty array = run once when component mounts
 
   // ── Start (or restart) the game ─────────────────────────────
   const startNewGame = useCallback(
-    (country: Country | null = null) => {
-      // If no country is passed, pick a new random one
-      const newCountry = country ?? getRandomCountry(allCountries);
+    (category: GameCategory = gameCategory, country: Country | null = null) => {
+      const newCountry = category === "country" ? country ?? getRandomCountry(allCountries) : null;
+      const newPlayer =
+        category === "player"
+          ? SPORTS_PLAYERS[Math.floor(Math.random() * SPORTS_PLAYERS.length)]
+          : null;
+      const newTeam =
+        category === "team"
+          ? SPORTS_TEAMS[Math.floor(Math.random() * SPORTS_TEAMS.length)]
+          : null;
 
+      console.log(
+        "[TESTING] Respuesta secreta:",
+        category === "country"
+          ? newCountry?.name.common
+          : category === "player"
+            ? newPlayer
+            : newTeam
+      );
+
+      setGameCategory(category);
       setSecretCountry(newCountry);
+      setSecretPlayer(newPlayer);
+      setSecretTeam(newTeam);
       setMessages([
         {
           role: "ai",
-          text: "🌍 I'm thinking of a country... You have 20 questions to find out which one! Ask me anything — yes/no questions work best!",
+          text:
+            category === "country"
+              ? "Estoy pensando en un país. Tienes 20 preguntas para descubrir cuál es."
+              : category === "player"
+                ? "Estoy pensando en un jugador famoso. Tienes 20 preguntas para adivinarlo."
+                : "Estoy pensando en un equipo de fútbol. Tienes 20 preguntas para acertarlo.",
         },
       ]);
       setQuestionsUsed(0);
@@ -93,7 +141,7 @@ export function useGame() {
       setIsAiThinking(false);
       setError(null);
     },
-    [allCountries]
+    [allCountries, gameCategory]
   );
 
   // ── Handle a question from the user ─────────────────────────
@@ -131,12 +179,14 @@ export function useGame() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             question: questionText,
-            country: secretCountry,
+            country: gameCategory === "country" ? secretCountry : null,
+            playerName: gameCategory === "player" ? secretPlayer : null,
+            teamName: gameCategory === "team" ? secretTeam : null,
             history: historyForAI,
           }),
         });
 
-        if (!res.ok) throw new Error("Could not get an answer. Try again.");
+        if (!res.ok) throw new Error("No pudimos obtener una respuesta. Intenta de nuevo.");
 
         const { answer } = await res.json();
 
@@ -153,7 +203,7 @@ export function useGame() {
         setIsAiThinking(false);
       }
     },
-    [gameStatus, isAiThinking, questionsUsed, messages, secretCountry]
+    [gameStatus, isAiThinking, questionsUsed, messages, secretCountry, gameCategory, secretPlayer, secretTeam]
   );
 
   // ── Handle a country guess from the user ────────────────────
@@ -162,13 +212,18 @@ export function useGame() {
       if (gameStatus !== "playing" || isAiThinking) return;
       if (!guessText.trim()) return;
 
-      const isCorrect = checkGuess(guessText, secretCountry);
+      const isCorrect =
+        gameCategory === "country"
+          ? checkGuess(guessText, secretCountry)
+          : gameCategory === "player"
+            ? normalizeText(guessText) === normalizeText(secretPlayer ?? "")
+            : normalizeText(guessText) === normalizeText(secretTeam ?? "");
       const newQuestionCount = questionsUsed + 1;
 
       // Add the guess as a user message
       setMessages((prev) => [
         ...prev,
-        { role: "user", text: `🔍 My guess: ${guessText}` },
+        { role: "user", text: `Adivino: ${guessText}` },
       ]);
       setQuestionsUsed(newQuestionCount);
 
@@ -178,7 +233,12 @@ export function useGame() {
           ...(prev as ChatMessage[]),
           {
             role: "ai" as const,
-            text: `🎉 YES! You got it! The country was **${secretCountry?.name.common}**! Incredible geography skills! 🌟`,
+            text:
+              gameCategory === "country"
+                ? `Correcto. Era **${secretCountry?.name.common}**.`
+                : gameCategory === "player"
+                  ? `Correcto. Era **${secretPlayer}**.`
+                  : `Correcto. Era **${secretTeam}**.`,
           },
         ]);
         setGameStatus("won");
@@ -191,8 +251,12 @@ export function useGame() {
             role: "ai" as const,
             text:
               remaining > 0
-                ? `❌ Nope, that's not it! You have ${remaining} question${remaining !== 1 ? "s" : ""} left. Keep thinking!`
-                : `❌ Wrong guess! You've used all your questions. The country was **${secretCountry?.name.common}**. Better luck next time!`,
+                ? `No es correcto. Te quedan ${remaining} pregunta${remaining !== 1 ? "s" : ""}.`
+                : gameCategory === "country"
+                  ? `Agotaste tus preguntas. La respuesta era **${secretCountry?.name.common}**.`
+                  : gameCategory === "player"
+                    ? `Agotaste tus preguntas. La respuesta era **${secretPlayer}**.`
+                    : `Agotaste tus preguntas. La respuesta era **${secretTeam}**.`,
           },
         ]);
 
@@ -201,8 +265,31 @@ export function useGame() {
         }
       }
     },
-    [gameStatus, isAiThinking, questionsUsed, secretCountry]
+    [gameStatus, isAiThinking, questionsUsed, secretCountry, gameCategory, secretPlayer, secretTeam]
   );
+
+  const changeCategory = useCallback(
+    (nextCategory: GameCategory) => {
+      startNewGame(nextCategory);
+    },
+    [startNewGame]
+  );
+
+  const checkAutoGuess = useCallback((text: string) => {
+    if (gameStatus !== "playing" || isAiThinking) return;
+    if (!text.trim()) return;
+
+    const isCorrect =
+      gameCategory === "country"
+        ? checkGuess(text, secretCountry)
+        : gameCategory === "player"
+          ? normalizeText(text) === normalizeText(secretPlayer ?? "")
+          : normalizeText(text) === normalizeText(secretTeam ?? "");
+
+    if (isCorrect) {
+      submitGuess(text);
+    }
+  }, [gameStatus, isAiThinking, gameCategory, secretCountry, secretPlayer, secretTeam, submitGuess]);
 
   // ── Return everything the UI needs ──────────────────────────
   return {
@@ -214,8 +301,11 @@ export function useGame() {
     gameStatus,
     isAiThinking,
     error,
+    gameCategory,
     askQuestion,
     submitGuess,
-    restartGame: () => startNewGame(),
+    checkAutoGuess,
+    changeCategory,
+    restartGame: () => startNewGame(gameCategory),
   };
 }

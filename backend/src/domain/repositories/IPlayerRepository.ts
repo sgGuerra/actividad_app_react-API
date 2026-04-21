@@ -2,21 +2,37 @@
  * IPlayerRepository.ts
  * ─────────────────────────────────────────────────────────────
  * Interfaz del repositorio de jugadores.
- * Soporta filtrado por equipo usando query params.
+ *
+ * Todos los métodos son async porque consultan TheSportsDB API
+ * en tiempo real. Incluye métodos para obtener el historial
+ * completo de un jugador (equipos anteriores, títulos, etc.)
  * ─────────────────────────────────────────────────────────────
  */
 import { Player } from "../entities/Player";
+import { FormerTeam } from "../entities/FormerTeam";
+import { Honour } from "../entities/Honour";
+import { Contract } from "../entities/Contract";
+import { Milestone } from "../entities/Milestone";
 
 export interface IPlayerRepository {
-  /** Obtener todos los jugadores */
-  findAll(): Player[];
+  /** Buscar jugadores por nombre */
+  searchByName(name: string): Promise<Player[]>;
 
   /** Obtener un jugador por su ID */
-  findById(id: number): Player | null;
+  findById(id: string): Promise<Player | null>;
 
-  /**
-   * Obtener jugadores filtrados por equipo.
-   * Se usa con query params: GET /api/players?team_id=100
-   */
-  findByTeamId(teamId: number): Player[];
+  /** Obtener todos los jugadores de un equipo por ID de equipo */
+  getByTeamId(teamId: string): Promise<Player[]>;
+
+  /** Obtener el historial de equipos anteriores de un jugador */
+  getFormerTeams(playerId: string): Promise<FormerTeam[]>;
+
+  /** Obtener los títulos/honores de un jugador */
+  getHonours(playerId: string): Promise<Honour[]>;
+
+  /** Obtener los contratos de un jugador */
+  getContracts(playerId: string): Promise<Contract[]>;
+
+  /** Obtener los hitos de un jugador */
+  getMilestones(playerId: string): Promise<Milestone[]>;
 }
